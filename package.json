@@ -1,0 +1,10 @@
+{
+  "name": "legitcheck-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LegitCheck AI — проверка вещей на оригинальность (Gemini)",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "dev": "vercel dev"
+  }
+}
