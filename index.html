@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LegitCheck AI — Проверка вещей на оригинальность</title>
+    <meta name="description" content="ИИ-легитчек: загрузите фото вещи и узнайте модель, коллекцию, историю и признаки подлинности.">
+    <meta name="theme-color" content="#09090b">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="/tailwind.config.js"></script>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body class="bg-dark-950 text-zinc-100 font-sans antialiased min-h-screen flex flex-col selection:bg-blue-500/30 selection:text-blue-200">
+
+    <!-- Уведомления (вместо alert) -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- Шапка сайта -->
+    <header class="sticky top-0 z-40 glass-panel border-b border-zinc-800/80">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <i data-lucide="shield-check" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">LegitCheck AI</span>
+                    <span class="hidden md:inline-block ml-2 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">Gemini Engine</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Индикатор дневного бесплатного лимита -->
+                <div id="quota-badge" class="flex items-center gap-1.5 text-xs font-medium px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-300 border border-emerald-500/25">
+                    <i data-lucide="zap" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    <span id="quota-text">1 / 1 бесплатно сегодня</span>
+                </div>
+
+                <button onclick="fillDemoExample()" class="text-xs sm:text-sm text-indigo-300 hover:text-white flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 transition-colors">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-indigo-400"></i>
+                    <span class="hidden sm:inline">Пример разбора</span>
+                </button>
+                <button onclick="openTipsModal()" class="text-xs sm:text-sm text-zinc-400 hover:text-white flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl hover:bg-zinc-800/60 transition-colors">
+                    <i data-lucide="camera" class="w-4 h-4 text-blue-400"></i>
+                    <span class="hidden md:inline">Как фоткать?</span>
+                </button>
+                <button onclick="resetApp()" id="reset-btn" class="hidden text-xs sm:text-sm text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Новая проверка</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Основной контент -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8">
+        
+        <!-- Приветственный блок (скрывается при показе результатов) -->
+        <div id="hero-section" class="text-center max-w-2xl mx-auto mb-8">
+            <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3">
+                Проверка вещей на <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">оригинальность</span>
+            </h1>
+            <p class="text-zinc-400 text-sm sm:text-base leading-relaxed">
+                Загрузите фото вещи прямо с iPad, телефона или ПК и укажите известную информацию (или оставьте поля пустыми). ИИ-эксперт определит модель, коллекцию, расскажет её историю и детально объяснит признаки подлинности.
+            </p>
+        </div>
+
+        <!-- Секция ввода данных -->
+        <div id="input-section" class="max-w-3xl mx-auto">
+            <div class="glass-panel rounded-3xl p-5 sm:p-8 shadow-2xl">
+                
+                <!-- Зона загрузки фотографий -->
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-sm font-medium text-zinc-200 flex items-center gap-2">
+                            <i data-lucide="image-plus" class="w-4 h-4 text-blue-400"></i>
+                            Фотографии вещи <span class="text-xs text-zinc-500 font-normal">(до 4 фото: общий вид, бирки, швы, лого)</span>
+                        </label>
+                        <span id="photo-count" class="text-xs text-zinc-400">0 / 4</span>
+                    </div>
+
+                    <!-- Dropzone -->
+                    <div id="drop-zone" class="relative border-2 border-dashed border-zinc-700 hover:border-blue-500/60 bg-dark-900/50 rounded-2xl p-6 sm:p-8 text-center cursor-pointer transition-all group">
+                        <input type="file" id="file-input" accept="image/*" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                        <div class="flex flex-col items-center justify-center pointer-events-none">
+                            <div class="w-12 h-12 rounded-2xl bg-zinc-800 group-hover:bg-blue-500/10 group-hover:text-blue-400 text-zinc-400 flex items-center justify-center mb-3 transition-colors">
+                                <i data-lucide="upload-cloud" class="w-6 h-6"></i>
+                            </div>
+                            <p class="text-sm font-medium text-zinc-200 mb-1">Нажмите для выбора из медиатеки / камеры или перетащите фото</p>
+                            <p class="text-xs text-zinc-500">PNG, JPG, WEBP. Чем четче фото бирок, швов и логотипов, тем точнее вердикт</p>
+                        </div>
+                    </div>
+
+                    <!-- Превью загруженных фото -->
+                    <div id="image-previews" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 hidden"></div>
+                </div>
+
+                <!-- Поля для бренда и модели -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                    <div>
+                        <label for="brand-input" class="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1.5">
+                            Бренд <span class="text-zinc-600 normal-case">(если знаете)</span>
+                        </label>
+                        <div class="relative">
+                            <i data-lucide="tag" class="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                            <input type="text" id="brand-input" placeholder="Например: Nike, Balenciaga, Stone Island..." 
+                                class="w-full bg-dark-900 border border-zinc-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-zinc-600 outline-none transition-all">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="model-input" class="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1.5">
+                            Модель / Артикул <span class="text-zinc-600 normal-case">(если знаете)</span>
+                        </label>
+                        <div class="relative">
+                            <i data-lucide="layers" class="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                            <input type="text" id="model-input" placeholder="Например: Air Jordan 1 Chicago, Track..." 
+                                class="w-full bg-dark-900 border border-zinc-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-zinc-600 outline-none transition-all">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Дополнительные детали -->
+                <div class="mb-6">
+                    <label for="notes-input" class="block text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1.5">
+                        Дополнительный контекст <span class="text-zinc-600 normal-case">(необязательно)</span>
+                    </label>
+                    <textarea id="notes-input" rows="2" placeholder="Где покупалась вещь, цена, на что обратить особое внимание (например: смущает шрифт на размернике или запах клея)..." 
+                        class="w-full bg-dark-900 border border-zinc-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 outline-none transition-all resize-none"></textarea>
+                </div>
+
+                <!-- Кнопка запуска проверки -->
+                <button id="analyze-btn" onclick="startLegitCheck()" class="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm sm:text-base shadow-lg shadow-blue-600/25 hover:shadow-blue-500/40 transition-all flex items-center justify-center gap-2 active:scale-[0.99]">
+                    <i data-lucide="scan-search" class="w-5 h-5"></i>
+                    <span id="analyze-btn-text">Проверить на оригинальность (Бесплатно • 1/день)</span>
+                </button>
+                <p id="limit-hint" class="text-center text-[11px] text-zinc-500 mt-2.5">
+                    Каждому пользователю доступна 1 бесплатная полная экспертиза в сутки через нейросеть Gemini.
+                </p>
+            </div>
+        </div>
+
+        <!-- Экран загрузки / сканирования -->
+        <div id="loading-section" class="hidden max-w-xl mx-auto my-12 text-center">
+            <div class="glass-panel rounded-3xl p-8 relative overflow-hidden">
+                <!-- Анимация сканирования -->
+                <div class="relative w-24 h-24 mx-auto mb-6 rounded-2xl bg-dark-900 border border-blue-500/30 flex items-center justify-center overflow-hidden shadow-inner">
+                    <i data-lucide="shield" class="w-10 h-10 text-blue-400"></i>
+                    <div class="absolute inset-0 scan-line h-1/2 w-full animate-scan"></div>
+                </div>
+                
+                <h3 class="text-xl font-bold text-white mb-2">Проводим экспертизу...</h3>
+                <p id="loading-status" class="text-sm text-blue-400 font-medium mb-4">Идентификация бренда, силуэта и коллекции...</p>
+                
+                <div class="w-full bg-dark-900 rounded-full h-1.5 overflow-hidden max-w-xs mx-auto">
+                    <div id="loading-bar" class="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-500" style="width: 15%"></div>
+                </div>
+                <p class="text-xs text-zinc-500 mt-4">ИИ анализирует микродетали, типографику бирок, строчки и сверяет данные с архивами бренда</p>
+            </div>
+        </div>
+
+        <!-- Секция результатов экспертизы -->
+        <div id="results-section" class="hidden space-y-6 animate-fade-in">
+            
+            <!-- Карточка главного вердикта -->
+            <div id="verdict-card" class="glass-panel rounded-3xl p-6 sm:p-8 border-2 transition-all">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div class="flex items-start sm:items-center gap-4">
+                        <div id="verdict-icon-bg" class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center shrink-0">
+                            <i id="verdict-icon" data-lucide="check-circle-2" class="w-8 h-8"></i>
+                        </div>
+                        <div>
+                            <div class="flex flex-wrap items-center gap-2 mb-1">
+                                <span id="verdict-badge" class="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg">ВЕРДИКТ</span>
+                                <span id="confidence-badge" class="text-xs font-medium px-2.5 py-1 rounded-lg bg-zinc-800 text-zinc-300">Уверенность: --%</span>
+                            </div>
+                            <h2 id="res-item-title" class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Название модели</h2>
+                            <p id="res-brand-collection" class="text-sm sm:text-base text-zinc-400 mt-0.5">Бренд • Коллекция / Год выпуска</p>
+                        </div>
+                    </div>
+
+                    <!-- Индикатор уверенности (круговой или шкала) -->
+                    <div class="bg-dark-900/80 rounded-2xl p-4 border border-zinc-800/80 min-w-[200px]">
+                        <div class="flex justify-between text-xs mb-1.5">
+                            <span class="text-zinc-400">Индекс подлинности</span>
+                            <span id="score-text" class="font-bold text-white">0%</span>
+                        </div>
+                        <div class="w-full bg-zinc-800 rounded-full h-2.5 overflow-hidden">
+                            <div id="score-bar" class="h-full rounded-full transition-all duration-1000" style="width: 0%"></div>
+                        </div>
+                        <p id="res-release-year" class="text-[11px] text-zinc-500 mt-2 flex items-center gap-1">
+                            <i data-lucide="calendar" class="w-3 h-3"></i>
+                            <span>Релиз: уточняется</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Краткое резюме вердикта -->
+                <div class="mt-6 pt-6 border-t border-zinc-800/80">
+                    <p id="res-verdict-summary" class="text-sm sm:text-base text-zinc-200 leading-relaxed"></p>
+                </div>
+            </div>
+
+            <!-- Сетка: Признаки оригинальности + История вещи -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Левая колонка (7 колонок): Детальный разбор подлинности -->
+                <div class="lg:col-span-7 space-y-6">
+                    <div class="glass-panel rounded-3xl p-6 sm:p-7">
+                        <div class="flex items-center gap-2.5 mb-5">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                                <i data-lucide="microscope" class="w-5 h-5"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-white">Почему вещь оригинальная / Разбор деталей</h3>
+                        </div>
+                        
+                        <div id="authenticity-points" class="space-y-3.5">
+                            <!-- Сюда рендерятся пункты проверки -->
+                        </div>
+
+                        <!-- Советы, что дофоткать (если не хватает данных) -->
+                        <div id="missing-details-box" class="hidden mt-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5 mb-1.5">
+                                <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                                Что стоит проверить дополнительно
+                            </h4>
+                            <p id="res-missing-details" class="text-xs sm:text-sm text-amber-200/90 leading-relaxed"></p>
+                        </div>
+                    </div>
+
+                    <!-- Загруженные пользователем фото в компактной галерее -->
+                    <div class="glass-panel rounded-3xl p-6">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3">Проанализированные снимки</h4>
+                        <div id="result-gallery" class="grid grid-cols-4 gap-3"></div>
+                    </div>
+                </div>
+
+                <!-- Правая колонка (5 колонок): История модели и коллекции -->
+                <div class="lg:col-span-5 space-y-6">
+                    <!-- Карточка коллекции -->
+                    <div class="glass-panel rounded-3xl p-6 sm:p-7 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                        
+                        <div class="flex items-center gap-2.5 mb-4">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+                                <i data-lucide="sparkles" class="w-5 h-5"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-white">О коллекции</h3>
+                        </div>
+                        <div class="inline-block px-3 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold mb-3" id="res-collection-tag">
+                            Коллекция
+                        </div>
+                        <p id="res-collection-story" class="text-sm text-zinc-300 leading-relaxed"></p>
+                    </div>
+
+                    <!-- Карточка истории модели -->
+                    <div class="glass-panel rounded-3xl p-6 sm:p-7 relative overflow-hidden">
+                        <div class="absolute bottom-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl -mr-10 -mb-10 pointer-events-none"></div>
+                        
+                        <div class="flex items-center gap-2.5 mb-4">
+                            <div class="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
+                                <i data-lucide="book-open" class="w-5 h-5"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-white">История модели</h3>
+                        </div>
+                        <p id="res-model-history" class="text-sm text-zinc-300 leading-relaxed whitespace-pre-line"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Чат для уточняющих вопросов по этой вещи -->
+            <div class="glass-panel rounded-3xl p-6 sm:p-7">
+                <div class="flex items-center justify-between gap-2 mb-4">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                            <i data-lucide="message-square" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-white">Задать вопрос эксперту по этой вещи</h3>
+                            <p class="text-xs text-zinc-400">Спросите про конкретный шов, код на бирке или рыночную стоимость</p>
+                        </div>
+                    </div>
+                    <button onclick="resetApp()" class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-200 transition-colors shrink-0">
+                        + Новая вещь
+                    </button>
+                </div>
+
+                <div id="followup-messages" class="space-y-3 mb-4 max-h-64 overflow-y-auto pr-1 hidden"></div>
+
+                <form onsubmit="askFollowUp(event)" class="flex gap-2">
+                    <input type="text" id="followup-input" placeholder="Например: Почему на левом ботинке шрифт чуть толще?" 
+                        class="flex-1 bg-dark-900 border border-zinc-800 focus:border-blue-500 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-600 outline-none transition-all">
+                    <button type="submit" id="followup-btn" class="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm transition-colors flex items-center gap-1.5 shrink-0">
+                        <span>Спросить</span>
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Модальное окно с советами по фото -->
+    <div id="tips-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+        <div class="bg-dark-900 border border-zinc-800 rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl relative">
+            <button onclick="closeTipsModal()" class="absolute top-5 right-5 text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                    <i data-lucide="camera" class="w-5 h-5"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white">Как сделать фото для точного легитчека</h3>
+            </div>
+            <ul class="space-y-3 text-sm text-zinc-300 mb-6">
+                <li class="flex items-start gap-2.5">
+                    <span class="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
+                    <span><strong>Общий план и силуэт:</strong> Сфотографируйте вещь целиком при хорошем дневном освещении, чтобы оценить пропорции и форму.</span>
+                </li>
+                <li class="flex items-start gap-2.5">
+                    <span class="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
+                    <span><strong>Бирки и размерники (Wash tags / Size tags):</strong> Сделайте макро-фото внутренних этикеток со шрифтами, артикулами и QR/штрих-кодами.</span>
+                </li>
+                <li class="flex items-start gap-2.5">
+                    <span class="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
+                    <span><strong>Логотипы и вышивка:</strong> Крупный план вышивки, принта, гравировки на фурнитуре или патча.</span>
+                </li>
+                <li class="flex items-start gap-2.5">
+                    <span class="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">4</span>
+                    <span><strong>Швы и стелька/коробка:</strong> Для кроссовок важны швы под стелькой и наклейка на коробке.</span>
+                </li>
+            </ul>
+            <button onclick="closeTipsModal()" class="w-full py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-medium text-sm transition-colors">
+                Понятно, приступим
+            </button>
+        </div>
+    </div>
+
+    <!-- Модальное окно при исчерпании дневного лимита -->
+    <div id="limit-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div class="bg-dark-900 border border-zinc-800 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl relative text-center">
+            <button onclick="closeLimitModal()" class="absolute top-5 right-5 text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <div class="w-14 h-14 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center mx-auto mb-4 border border-amber-500/25">
+                <i data-lucide="clock" class="w-7 h-7"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2">Дневной бесплатный лимит исчерпан</h3>
+            <p class="text-sm text-zinc-400 leading-relaxed mb-4">
+                Вы уже использовали свою <strong class="text-zinc-200">1 бесплатную проверку</strong> за последние 24 часа. Следующий бесплатный запрос станет доступен через:
+            </p>
+            <div id="limit-countdown" class="text-2xl font-extrabold font-mono tracking-wider text-amber-300 bg-dark-950 border border-zinc-800 rounded-2xl py-3 px-4 mb-5">
+                23:59:59
+            </div>
+
+            <!-- Секретный VIP-код для владельца / друзей -->
+            <div class="text-left bg-dark-950/70 border border-zinc-800/80 rounded-2xl p-3.5 mb-4">
+                <label class="block text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-1.5">
+                    Есть VIP-код доступа?
+                </label>
+                <div class="flex gap-2">
+                    <input type="text" id="vip-code-input" placeholder="Введите код..." 
+                        class="flex-1 bg-dark-900 border border-zinc-800 focus:border-blue-500 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-600 outline-none">
+                    <button type="button" onclick="applyVipCode()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors">
+                        Активировать
+                    </button>
+                </div>
+            </div>
+
+            <button onclick="closeLimitModal()" class="w-full py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-medium text-sm transition-colors">
+                Понятно
+            </button>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
